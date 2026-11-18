@@ -21,7 +21,7 @@ struct Booking
 };
 
 vector<Booking> bacaBooking();
-void simpanBooking(vector<Booking> daftar);
+bool simpanBooking(const vector<Booking> &daftar);
 int idBookingBerikutnya();
 
 void tambahBooking();
@@ -29,6 +29,7 @@ void lihatBooking();
 void editBooking();
 void hapusBooking();
 void cetakBooking();
+void menuTransaksi();
 void menuBooking();
 
 #endif

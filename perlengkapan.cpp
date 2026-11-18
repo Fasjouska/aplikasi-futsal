@@ -1,123 +1,265 @@
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <string>
+#include <vector>
+
 #include "perlengkapan.h"
 
 using namespace std;
 
+namespace
+{
 struct Perlengkapan
 {
+    int id;
     string jenis;
-    string satuan;
+    string pilihan;
     int jumlah;
     int harga;
 };
 
-const int MAX_PERLENGKAPAN = 20;
-Perlengkapan daftarPerlengkapan[MAX_PERLENGKAPAN];
-int totalPerlengkapan = 0;
+const char *FILE_PERLENGKAPAN = "perlengkapan.txt";
 
-int inputAngka(const string &pesan)
+bool konversiAngka(const string &teks, int &angka)
 {
-    int nilai;
-    cout << pesan;
-    while (!(cin >> nilai))
+    stringstream ss(teks);
+    char sisa;
+    return (ss >> angka) && !(ss >> sisa);
+}
+
+bool inputAngka(const string &pesan, int &angka)
+{
+    while (true)
     {
+        cout << pesan;
+        if (cin >> angka)
+        {
+            return true;
+        }
         if (cin.eof())
         {
-            return 0;
+            return false;
         }
 
         cin.clear();
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        cout << "Input harus berupa angka. " << pesan;
+        cout << "Input harus berupa angka." << endl;
     }
-    return nilai;
 }
 
-int inputJumlah()
+vector<Perlengkapan> bacaPerlengkapan()
 {
-    int jumlah = inputAngka("Jumlah: ");
-    while (jumlah <= 0)
+    vector<Perlengkapan> daftar;
+    ifstream file(FILE_PERLENGKAPAN);
+    string baris;
+
+    while (getline(file, baris))
     {
-        cout << "Jumlah harus lebih dari 0." << endl;
-        jumlah = inputAngka("Jumlah: ");
+        stringstream ss(baris);
+        string dataId;
+        string dataJumlah;
+        string dataHarga;
+        Perlengkapan item;
+
+        getline(ss, dataId, '|');
+        getline(ss, item.jenis, '|');
+        getline(ss, item.pilihan, '|');
+        getline(ss, dataJumlah, '|');
+        getline(ss, dataHarga, '|');
+
+        if (konversiAngka(dataId, item.id) &&
+            konversiAngka(dataJumlah, item.jumlah) &&
+            konversiAngka(dataHarga, item.harga))
+        {
+            daftar.push_back(item);
+        }
     }
-    return jumlah;
+
+    return daftar;
 }
 
-int inputHarga()
+bool simpanPerlengkapan(const vector<Perlengkapan> &daftar)
 {
-    int harga = inputAngka("Harga sewa per jam (Rp): ");
-    while (harga < 0)
+    ofstream file(FILE_PERLENGKAPAN);
+    if (!file.is_open())
     {
-        cout << "Harga tidak boleh negatif." << endl;
-        harga = inputAngka("Harga sewa per jam (Rp): ");
+        cout << "Gagal membuka " << FILE_PERLENGKAPAN << " untuk disimpan."
+             << endl;
+        return false;
     }
-    return harga;
+
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        file << daftar[i].id << "|"
+             << daftar[i].jenis << "|"
+             << daftar[i].pilihan << "|"
+             << daftar[i].jumlah << "|"
+             << daftar[i].harga << endl;
+    }
+
+    file.close();
+    if (!file)
+    {
+        cout << "Gagal menyimpan data perlengkapan." << endl;
+        return false;
+    }
+    return true;
 }
 
-string namaJenis(int pilihan)
+int idBerikutnya(const vector<Perlengkapan> &daftar)
 {
-    if (pilihan == 1)
+    int idTerbesar = 0;
+    for (size_t i = 0; i < daftar.size(); i++)
     {
-        return "Jersey";
+        if (daftar[i].id > idTerbesar)
+        {
+            idTerbesar = daftar[i].id;
+        }
     }
-    if (pilihan == 2)
-    {
-        return "Bola";
-    }
-    return "Rompi";
+    return idTerbesar + 1;
 }
 
-string inputSatuan()
+bool pilihJenis(string &jenis)
 {
-    cout << "Pilihan jumlah:" << endl;
-    cout << "1. Paketan" << endl;
-    cout << "2. Satuan" << endl;
+    int pilihan;
+    cout << "\nPilih jenis perlengkapan:" << endl;
+    cout << "1. Jersey" << endl;
+    cout << "2. Bola" << endl;
+    cout << "3. Rompi" << endl;
 
-    int pilihan = inputAngka("Pilih: ");
-    while (pilihan != 1 && pilihan != 2)
+    while (true)
     {
+        if (!inputAngka("Pilih: ", pilihan))
+        {
+            return false;
+        }
+        if (pilihan == 1)
+        {
+            jenis = "Jersey";
+            return true;
+        }
+        if (pilihan == 2)
+        {
+            jenis = "Bola";
+            return true;
+        }
+        if (pilihan == 3)
+        {
+            jenis = "Rompi";
+            return true;
+        }
         cout << "Pilihan tidak tersedia." << endl;
-        pilihan = inputAngka("Pilih: ");
     }
-    return pilihan == 1 ? "Paketan" : "Satuan";
 }
 
-bool indeksUntukJenis(int indeks, const string &jenis)
+bool isiRincian(Perlengkapan &item)
 {
-    return daftarPerlengkapan[indeks].jenis == jenis;
+    if (item.jenis == "Bola")
+    {
+        item.pilihan = "Satuan";
+        item.harga = 5000;
+        cout << "Harga bola ditetapkan Rp5000 per bola per jam." << endl;
+    }
+    else
+    {
+        int pilihan;
+        cout << "\nPilih jenis sewa:" << endl;
+        cout << "1. Paketan (6 orang)" << endl;
+        cout << "2. Satuan" << endl;
+
+        while (true)
+        {
+            if (!inputAngka("Pilih: ", pilihan))
+            {
+                return false;
+            }
+            if (pilihan == 1)
+            {
+                item.pilihan = "Paketan";
+                item.harga = item.jenis == "Jersey" ? 50000 : 25000;
+                break;
+            }
+            if (pilihan == 2)
+            {
+                item.pilihan = "Satuan";
+                item.harga = item.jenis == "Jersey" ? 10000 : 5000;
+                break;
+            }
+            cout << "Pilihan tidak tersedia." << endl;
+        }
+
+        if (item.pilihan == "Paketan")
+        {
+            cout << "Harga " << item.jenis
+                 << " paketan (6 orang): Rp" << item.harga
+                 << " per jam." << endl;
+        }
+        else
+        {
+            cout << "Harga " << item.jenis << " satuan: Rp" << item.harga
+                 << " per orang per jam." << endl;
+        }
+    }
+
+    const string labelJumlah =
+        item.jenis == "Bola" ? "Jumlah bola: " :
+        item.pilihan == "Paketan" ? "Jumlah paket: " : "Jumlah satuan: ";
+
+    while (true)
+    {
+        if (!inputAngka(labelJumlah, item.jumlah))
+        {
+            return false;
+        }
+        if (item.jumlah > 0)
+        {
+            return true;
+        }
+        cout << "Jumlah harus lebih dari 0." << endl;
+    }
 }
 
-void tampilkanPerlengkapan(const string &jenis)
+void tampilkanPerlengkapan(const vector<Perlengkapan> &daftar,
+                           const string &jenis = "")
 {
+    cout << "\n================ DATA PERLENGKAPAN ================\n";
+    if (daftar.empty())
+    {
+        cout << "Belum ada data perlengkapan." << endl;
+        return;
+    }
+
+    cout << left << setw(6) << "ID"
+         << setw(12) << "Jenis"
+         << setw(16) << "Pilihan"
+         << setw(12) << "Jumlah"
+         << setw(16) << "Tarif/Jam"
+         << "Total/Jam" << endl;
+    cout << "---------------------------------------------------------------"
+         << endl;
+
     bool ditemukan = false;
-    int nomor = 0;
-    cout << "\n===== DATA " << jenis << " =====" << endl;
-    cout << "No\tJumlah\t\tHarga/Jam";
-    if (jenis != "Bola")
+    for (size_t i = 0; i < daftar.size(); i++)
     {
-        cout << "\tSatuan";
-    }
-    cout << endl;
-
-    for (int i = 0; i < totalPerlengkapan; i++)
-    {
-        if (!indeksUntukJenis(i, jenis))
+        if (!jenis.empty() && daftar[i].jenis != jenis)
         {
             continue;
         }
 
         ditemukan = true;
-        nomor++;
-        cout << nomor << "\t" << daftarPerlengkapan[i].jumlah << "\t\tRp"
-             << daftarPerlengkapan[i].harga;
-        if (jenis != "Bola")
-        {
-            cout << "\t" << daftarPerlengkapan[i].satuan;
-        }
-        cout << endl;
+        const long long total = static_cast<long long>(daftar[i].jumlah) *
+                                daftar[i].harga;
+        cout << left << setw(6) << daftar[i].id
+             << setw(12) << daftar[i].jenis
+             << setw(16) << daftar[i].pilihan
+             << setw(12) << daftar[i].jumlah
+             << "Rp" << setw(14) << daftar[i].harga
+             << "Rp" << total << endl;
     }
 
     if (!ditemukan)
@@ -126,148 +268,243 @@ void tampilkanPerlengkapan(const string &jenis)
     }
 }
 
-void tambahPerlengkapan(const string &jenis)
-{
-    if (totalPerlengkapan >= MAX_PERLENGKAPAN)
-    {
-        cout << "Data perlengkapan sudah penuh!" << endl;
-        return;
-    }
-
-    Perlengkapan item;
-    item.jenis = jenis;
-
-    if (jenis == "Bola")
-    {
-        item.jumlah = inputJumlah();
-        item.harga = inputHarga();
-        item.satuan = "";
-    }
-    else
-    {
-        item.harga = inputHarga();
-        item.satuan = inputSatuan();
-        item.jumlah = inputJumlah();
-    }
-
-    daftarPerlengkapan[totalPerlengkapan] = item;
-    totalPerlengkapan++;
-    cout << "Data " << jenis << " berhasil ditambahkan." << endl;
-}
-
-int cariIndeks(const string &jenis)
+int cariIndeks(const vector<Perlengkapan> &daftar, const string &jenis)
 {
     bool ditemukan = false;
-    for (int i = 0; i < totalPerlengkapan; i++)
+    for (size_t i = 0; i < daftar.size(); i++)
     {
-        if (indeksUntukJenis(i, jenis))
+        if (daftar[i].jenis == jenis)
         {
             ditemukan = true;
             break;
         }
     }
-
     if (!ditemukan)
     {
         cout << "Belum ada data " << jenis << "." << endl;
         return -1;
     }
 
-    tampilkanPerlengkapan(jenis);
-    int nomor = inputAngka("Pilih nomor data yang akan diubah/dihapus: ");
-    int urutanJenis = 0;
-    for (int i = 0; i < totalPerlengkapan; i++)
+    tampilkanPerlengkapan(daftar, jenis);
+    int id;
+    if (!inputAngka("Masukkan ID perlengkapan: ", id))
     {
-        if (!indeksUntukJenis(i, jenis))
-        {
-            continue;
-        }
+        return -1;
+    }
 
-        urutanJenis++;
-        if (urutanJenis == nomor)
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        if (daftar[i].jenis == jenis && daftar[i].id == id)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 
-    cout << "Nomor data tidak valid untuk kategori " << jenis << "." << endl;
+    cout << "ID tidak ditemukan pada kategori " << jenis << "." << endl;
     return -1;
 }
 
-void ubahPerlengkapan(const string &jenis)
+void tambahPerlengkapan()
 {
-    int indeks = cariIndeks(jenis);
+    vector<Perlengkapan> daftar = bacaPerlengkapan();
+    Perlengkapan item;
+
+    cout << "\n===== TAMBAH PERLENGKAPAN =====" << endl;
+    if (!pilihJenis(item.jenis) || !isiRincian(item))
+    {
+        cout << "Penambahan dibatalkan." << endl;
+        return;
+    }
+
+    item.id = idBerikutnya(daftar);
+    daftar.push_back(item);
+    if (simpanPerlengkapan(daftar))
+    {
+        cout << "Data berhasil ditambahkan dengan ID " << item.id << "."
+             << endl;
+    }
+}
+
+void editPerlengkapan()
+{
+    vector<Perlengkapan> daftar = bacaPerlengkapan();
+    string jenis;
+    if (!pilihJenis(jenis))
+    {
+        return;
+    }
+
+    int indeks = cariIndeks(daftar, jenis);
     if (indeks < 0)
     {
         return;
     }
 
-    if (jenis == "Bola")
+    Perlengkapan perubahan = daftar[indeks];
+    if (!isiRincian(perubahan))
     {
-        daftarPerlengkapan[indeks].jumlah = inputJumlah();
-        daftarPerlengkapan[indeks].harga = inputHarga();
+        cout << "Perubahan dibatalkan." << endl;
+        return;
+    }
+
+    daftar[indeks] = perubahan;
+    if (simpanPerlengkapan(daftar))
+    {
+        cout << "Data perlengkapan berhasil diubah." << endl;
+    }
+}
+
+void hapusPerlengkapan()
+{
+    vector<Perlengkapan> daftar = bacaPerlengkapan();
+    string jenis;
+    if (!pilihJenis(jenis))
+    {
+        return;
+    }
+
+    int indeks = cariIndeks(daftar, jenis);
+    if (indeks < 0)
+    {
+        return;
+    }
+
+    char konfirmasi;
+    cout << "Hapus data ID " << daftar[indeks].id << "? (Y/T): ";
+    if (!(cin >> konfirmasi))
+    {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Input konfirmasi tidak valid." << endl;
+        return;
+    }
+
+    if (konfirmasi != 'Y' && konfirmasi != 'y')
+    {
+        cout << "Penghapusan dibatalkan." << endl;
+        return;
+    }
+
+    daftar.erase(daftar.begin() + indeks);
+    if (simpanPerlengkapan(daftar))
+    {
+        cout << "Data perlengkapan berhasil dihapus." << endl;
+    }
+}
+
+string escapeHtml(const string &teks)
+{
+    string hasil;
+    for (size_t i = 0; i < teks.length(); i++)
+    {
+        switch (teks[i])
+        {
+        case '&':
+            hasil += "&amp;";
+            break;
+        case '<':
+            hasil += "&lt;";
+            break;
+        case '>':
+            hasil += "&gt;";
+            break;
+        case '"':
+            hasil += "&quot;";
+            break;
+        case '\'':
+            hasil += "&#39;";
+            break;
+        default:
+            hasil += teks[i];
+        }
+    }
+    return hasil;
+}
+
+void cetakPerlengkapan()
+{
+    vector<Perlengkapan> daftar = bacaPerlengkapan();
+    ofstream file("laporan_perlengkapan.html");
+    if (!file.is_open())
+    {
+        cout << "Gagal membuat file laporan perlengkapan!" << endl;
+        return;
+    }
+
+    time_t sekarang = time(0);
+    tm *waktu = localtime(&sekarang);
+    char tanggal[50];
+    if (waktu != 0)
+    {
+        strftime(tanggal, sizeof(tanggal), "%d-%m-%Y", waktu);
     }
     else
     {
-        daftarPerlengkapan[indeks].harga = inputHarga();
-        daftarPerlengkapan[indeks].satuan = inputSatuan();
-        daftarPerlengkapan[indeks].jumlah = inputJumlah();
+        tanggal[0] = '\0';
     }
-    cout << "Data " << jenis << " berhasil diubah." << endl;
-}
 
-void hapusPerlengkapan(const string &jenis)
-{
-    int indeks = cariIndeks(jenis);
-    if (indeks < 0)
+    file << "<!DOCTYPE html>\n"
+         << "<html lang='id'><head><meta charset='UTF-8'>\n"
+         << "<title>Laporan Data Perlengkapan</title>\n"
+         << "<style>\n"
+         << "body{font-family:Arial,sans-serif;margin:40px;color:#333;}\n"
+         << ".header{text-align:center;border-bottom:3px solid #333;"
+            "padding-bottom:15px;margin-bottom:25px;}\n"
+         << "table{width:100%;border-collapse:collapse;}\n"
+         << "th,td{border:1px solid #555;padding:10px;text-align:left;}\n"
+         << "th{background:#e5e5e5;}\n"
+         << "button{padding:10px 20px;background:#198754;color:white;"
+            "border:0;border-radius:5px;margin-bottom:20px;}\n"
+         << "@media print{button{display:none;}body{margin:20px;}}\n"
+         << "</style></head><body>\n"
+         << "<div class='header'><h2>LAPORAN DATA PERLENGKAPAN</h2>"
+         << "<p>SISTEM INFORMASI MANAJEMEN FUTSAL</p></div>\n"
+         << "<button onclick='window.print()'>Cetak Laporan</button>\n";
+
+    if (tanggal[0] != '\0')
     {
+        file << "<p>Tanggal Cetak: " << tanggal << "</p>\n";
+    }
+
+    file << "<table><tr><th>ID</th><th>Jenis</th><th>Pilihan</th>"
+         << "<th>Jumlah</th><th>Tarif/Jam</th><th>Total/Jam</th></tr>\n";
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        const long long total = static_cast<long long>(daftar[i].jumlah) *
+                                daftar[i].harga;
+        string pilihan = daftar[i].pilihan;
+        if (daftar[i].jenis == "Jersey" && pilihan == "Paketan")
+        {
+            pilihan += " (6 orang)";
+        }
+        else if (daftar[i].jenis == "Rompi" && pilihan == "Paketan")
+        {
+            pilihan += " (6 orang)";
+        }
+
+        file << "<tr><td>" << daftar[i].id
+             << "</td><td>" << escapeHtml(daftar[i].jenis)
+             << "</td><td>" << escapeHtml(pilihan)
+             << "</td><td>" << daftar[i].jumlah
+             << "</td><td>Rp " << daftar[i].harga
+             << "</td><td>Rp " << total << "</td></tr>\n";
+    }
+    if (daftar.empty())
+    {
+        file << "<tr><td colspan='6'>Belum ada data perlengkapan.</td></tr>\n";
+    }
+    file << "</table></body></html>\n";
+    file.close();
+
+    if (!file)
+    {
+        cout << "Gagal menyimpan laporan perlengkapan." << endl;
         return;
     }
 
-    for (int i = indeks; i < totalPerlengkapan - 1; i++)
-    {
-        daftarPerlengkapan[i] = daftarPerlengkapan[i + 1];
-    }
-    totalPerlengkapan--;
-    cout << "Data " << jenis << " berhasil dihapus." << endl;
+    cout << "Laporan berhasil dibuat: laporan_perlengkapan.html" << endl;
+    system("start \"\" \"laporan_perlengkapan.html\"");
 }
-
-void menuKategori(int pilihanJenis)
-{
-    const string jenis = namaJenis(pilihanJenis);
-    int pilihan;
-    do
-    {
-        cout << "\n============================" << endl;
-        cout << "       DATA " << jenis << endl;
-        cout << "============================" << endl;
-        cout << "1. Tambah " << jenis << endl;
-        cout << "2. Lihat " << jenis << endl;
-        cout << "3. Ubah " << jenis << endl;
-        cout << "4. Hapus " << jenis << endl;
-        cout << "5. Kembali ke menu perlengkapan" << endl;
-
-        pilihan = inputAngka("Pilih: ");
-        switch (pilihan)
-        {
-        case 1:
-            tambahPerlengkapan(jenis);
-            break;
-        case 2:
-            tampilkanPerlengkapan(jenis);
-            break;
-        case 3:
-            ubahPerlengkapan(jenis);
-            break;
-        case 4:
-            hapusPerlengkapan(jenis);
-            break;
-        case 5:
-            break;
-        default:
-            cout << "Pilihan tidak tersedia!" << endl;
-        }
-    } while (pilihan != 5);
 }
 
 void menuPerlengkapan()
@@ -275,26 +512,43 @@ void menuPerlengkapan()
     int pilihan;
     do
     {
-        cout << "\n============================" << endl;
-        cout << "       DATA PERLENGKAPAN" << endl;
-        cout << "============================" << endl;
-        cout << "1. Jersey (harga/jam, jumlah paketan/satuan)" << endl;
-        cout << "2. Bola (jumlah, harga sewa/jam)" << endl;
-        cout << "3. Rompi (harga/jam, jumlah paketan/satuan)" << endl;
-        cout << "4. Kembali ke Menu Utama" << endl;
+        cout << "\n================================\n";
+        cout << "       MENU PERLENGKAPAN\n";
+        cout << "================================\n";
+        cout << "1. Tambah Perlengkapan\n";
+        cout << "2. Lihat Perlengkapan\n";
+        cout << "3. Edit Perlengkapan\n";
+        cout << "4. Hapus Perlengkapan\n";
+        cout << "5. Cetak Laporan Perlengkapan\n";
+        cout << "6. Kembali ke Menu Utama\n";
 
-        pilihan = inputAngka("Pilih: ");
-        if (pilihan >= 1 && pilihan <= 3)
+        if (!inputAngka("Pilih: ", pilihan))
         {
-            menuKategori(pilihan);
+            return;
         }
-        else if (pilihan == 4)
+
+        switch (pilihan)
         {
+        case 1:
+            tambahPerlengkapan();
+            break;
+        case 2:
+            tampilkanPerlengkapan(bacaPerlengkapan());
+            break;
+        case 3:
+            editPerlengkapan();
+            break;
+        case 4:
+            hapusPerlengkapan();
+            break;
+        case 5:
+            cetakPerlengkapan();
+            break;
+        case 6:
             cout << "Kembali ke menu utama." << endl;
-        }
-        else
-        {
+            break;
+        default:
             cout << "Pilihan tidak tersedia!" << endl;
         }
-    } while (pilihan != 4);
+    } while (pilihan != 6);
 }
