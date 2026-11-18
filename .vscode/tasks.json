@@ -11,6 +11,7 @@
                 "-Wextra",
                 "-g3",
                 "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/member.cpp",
                 "${workspaceFolder}/lapangan.cpp",
                 "${workspaceFolder}/perlengkapan.cpp",
                 "${workspaceFolder}/booking.cpp",
