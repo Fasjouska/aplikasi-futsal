@@ -28,8 +28,9 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "d:/KULIAH UNPAM/Semester 3/ALGORITMA DAN PEMROGRAMAN II/Pertemuan_13/Aplikasi Futsal",
-      "program": "d:/KULIAH UNPAM/Semester 3/ALGORITMA DAN PEMROGRAMAN II/Pertemuan_13/Aplikasi Futsal/build/Debug/outDebug",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/output/main.exe",
+      "preLaunchTask": "Build Aplikasi Futsal",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

@@ -15,6 +15,7 @@
                 "${workspaceFolder}/lapangan.cpp",
                 "${workspaceFolder}/perlengkapan.cpp",
                 "${workspaceFolder}/booking.cpp",
+                "${workspaceFolder}/transaksi.cpp",
                 "-o",
                 "${workspaceFolder}/output/main.exe"
             ],
