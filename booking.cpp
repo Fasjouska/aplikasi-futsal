@@ -1,4 +1,5 @@
 #include "booking.h"
+#include "transaksi.h"
 
 #include <iostream>
 #include <fstream>
@@ -8,7 +9,6 @@
 #include <string>
 #include <limits>
 #include <cstdlib>
-#include <cmath>
 #include <ctime>
 
 using namespace std;
@@ -55,18 +55,6 @@ struct DetailPerlengkapanBooking
     string pilihan;
     int jumlah;
     double harga_per_jam;
-};
-
-struct PembayaranBooking
-{
-    int id_transaksi;
-    int id_booking;
-    string jenis_pembayaran;
-    string metode;
-    double nominal_tagihan;
-    double jumlah_dibayar;
-    double kembalian;
-    string waktu;
 };
 
 // ==================================================
@@ -448,101 +436,19 @@ static double totalPerlengkapanBooking(int idBooking, int durasi)
     return total;
 }
 
-static vector<PembayaranBooking> bacaTransaksiBooking()
-{
-    vector<PembayaranBooking> daftar;
-    ifstream file("transaksi.txt");
-    string baris;
-
-    while (getline(file, baris))
-    {
-        stringstream ss(baris);
-        string idTransaksi;
-        string idBooking;
-        string nominalTagihan;
-        string jumlahDibayar;
-        string kembalian;
-        PembayaranBooking pembayaran;
-
-        getline(ss, idTransaksi, '|');
-        getline(ss, idBooking, '|');
-        getline(ss, pembayaran.jenis_pembayaran, '|');
-        getline(ss, pembayaran.metode, '|');
-        getline(ss, nominalTagihan, '|');
-        getline(ss, jumlahDibayar, '|');
-        getline(ss, kembalian, '|');
-        getline(ss, pembayaran.waktu, '|');
-
-        if (konversiInt(idTransaksi, pembayaran.id_transaksi) &&
-            konversiInt(idBooking, pembayaran.id_booking) &&
-            konversiDouble(nominalTagihan, pembayaran.nominal_tagihan) &&
-            konversiDouble(jumlahDibayar, pembayaran.jumlah_dibayar) &&
-            konversiDouble(kembalian, pembayaran.kembalian))
-        {
-            daftar.push_back(pembayaran);
-        }
-    }
-
-    return daftar;
-}
-
-static bool simpanTransaksiBooking(const vector<PembayaranBooking> &daftar)
-{
-    ofstream file("transaksi.txt");
-    if (!file.is_open())
-    {
-        cout << "Gagal membuka file transaksi.txt!\n";
-        return false;
-    }
-
-    file << fixed << setprecision(2);
-    for (size_t i = 0; i < daftar.size(); i++)
-    {
-        file << daftar[i].id_transaksi << "|"
-             << daftar[i].id_booking << "|"
-             << daftar[i].jenis_pembayaran << "|"
-             << daftar[i].metode << "|"
-             << daftar[i].nominal_tagihan << "|"
-             << daftar[i].jumlah_dibayar << "|"
-             << daftar[i].kembalian << "|"
-             << daftar[i].waktu << endl;
-    }
-
-    file.close();
-    if (!file)
-    {
-        cout << "Gagal menyimpan transaksi!\n";
-        return false;
-    }
-    return true;
-}
-
 static double jumlahTerbayar(int idBooking)
 {
-    vector<PembayaranBooking> daftar = bacaTransaksiBooking();
+    vector<Transaksi> daftar = bacaTransaksi();
     double total = 0;
     for (size_t i = 0; i < daftar.size(); i++)
     {
-        if (daftar[i].id_booking == idBooking)
+        if (daftar[i].id_booking == idBooking &&
+            daftar[i].status_transaksi == "Berhasil")
         {
-            total += daftar[i].nominal_tagihan;
+            total += daftar[i].jumlah_bayar;
         }
     }
     return total;
-}
-
-static int idTransaksiBerikutnya(
-    const vector<PembayaranBooking> &daftar)
-{
-    int terbesar = 0;
-    for (size_t i = 0; i < daftar.size(); i++)
-    {
-        if (daftar[i].id_transaksi > terbesar)
-        {
-            terbesar = daftar[i].id_transaksi;
-        }
-    }
-    return terbesar + 1;
 }
 
 // ==================================================
@@ -1052,9 +958,7 @@ void tambahBooking()
     cout << "Total Bayar : Rp "
          << fixed << setprecision(0)
          << b.total_bayar << endl;
-    cout << "DP 40%      : Rp "
-         << ceil(b.total_bayar * 0.40) << endl;
-    cout << "Silakan buka menu Transaksi untuk membayar DP atau melunasi.\n";
+    cout << "Silakan buka menu Transaksi untuk melakukan pembayaran.\n";
 }
 
 // ==================================================
@@ -1084,12 +988,11 @@ void lihatBooking()
          << setw(10) << "Jam"
          << setw(8) << "Durasi"
          << setw(14) << "Total"
-         << setw(14) << "DP 40%"
          << setw(14) << "Dibayar"
          << "Sisa"
          << endl;
 
-    cout << string(145, '-') << endl;
+    cout << string(130, '-') << endl;
 
     for (size_t i = 0; i < daftar.size(); i++)
     {
@@ -1106,13 +1009,12 @@ void lihatBooking()
              << setw(14)
              << fixed << setprecision(0)
              << daftar[i].total_bayar
-             << setw(14) << ceil(daftar[i].total_bayar * 0.40)
              << setw(14) << dibayar
              << (sisa > 0 ? sisa : 0)
              << endl;
     }
 
-    cout << string(145, '-') << endl;
+    cout << string(130, '-') << endl;
 }
 
 // ==================================================
@@ -1487,7 +1389,7 @@ static string waktuSekarang()
     return teks;
 }
 
-static bool cetakInvoiceBooking(const Booking &booking)
+bool cetakInvoiceBooking(const Booking &booking)
 {
     const double totalTerbayar = jumlahTerbayar(booking.id_booking);
     if (totalTerbayar + 0.000001 < booking.total_bayar)
@@ -1498,10 +1400,9 @@ static bool cetakInvoiceBooking(const Booking &booking)
 
     vector<DetailPerlengkapanBooking> perlengkapan =
         rincianUntukBooking(booking.id_booking);
-    vector<PembayaranBooking> pembayaran = bacaTransaksiBooking();
+    vector<Transaksi> pembayaran = bacaTransaksi();
     DataMember member;
     const bool memberDitemukan = cariMember(booking.id_member, member);
-    const double dpWajib = ceil(booking.total_bayar * 0.40);
     double totalPerlengkapan = 0;
     for (size_t i = 0; i < perlengkapan.size(); i++)
     {
@@ -1594,14 +1495,12 @@ static bool cetakInvoiceBooking(const Booking &booking)
          << "<h2>Ringkasan Pembayaran</h2><table>"
          << "<tr><th>Total biaya</th><td>Rp " << booking.total_bayar
          << "</td></tr>"
-         << "<tr><th>DP wajib (40%)</th><td>Rp " << dpWajib
-         << "</td></tr>"
          << "<tr><th>Total dibayar</th><td>Rp " << totalTerbayar
          << "</td></tr>"
          << "<tr><th>Status</th><td class='paid'>LUNAS</td></tr>"
          << "</table><h2>Riwayat Transaksi</h2><table>"
-         << "<tr><th>Jenis</th><th>Metode</th><th>Tagihan</th>"
-            "<th>Uang diterima</th><th>Kembalian</th><th>Waktu</th></tr>";
+         << "<tr><th>Tanggal</th><th>Metode</th><th>Jumlah</th>"
+            "<th>Status</th></tr>";
     for (size_t i = 0; i < pembayaran.size(); i++)
     {
         if (pembayaran[i].id_booking != booking.id_booking)
@@ -1609,12 +1508,10 @@ static bool cetakInvoiceBooking(const Booking &booking)
             continue;
         }
         file << "<tr><td>"
-             << escapeHtmlBooking(pembayaran[i].jenis_pembayaran)
-             << "</td><td>" << escapeHtmlBooking(pembayaran[i].metode)
-             << "</td><td>Rp " << pembayaran[i].nominal_tagihan
-             << "</td><td>Rp " << pembayaran[i].jumlah_dibayar
-             << "</td><td>Rp " << pembayaran[i].kembalian
-             << "</td><td>" << escapeHtmlBooking(pembayaran[i].waktu)
+             << escapeHtmlBooking(pembayaran[i].tanggal_bayar)
+             << "</td><td>" << escapeHtmlBooking(pembayaran[i].metode_bayar)
+             << "</td><td>Rp " << pembayaran[i].jumlah_bayar
+             << "</td><td>" << escapeHtmlBooking(pembayaran[i].status_transaksi)
              << "</td></tr>";
     }
     file << "</table><p>Terima kasih telah melakukan pemesanan.</p>"
@@ -1631,248 +1528,6 @@ static bool cetakInvoiceBooking(const Booking &booking)
     string perintah = "start \"\" \"" + namaFile.str() + "\"";
     system(perintah.c_str());
     return true;
-}
-
-static bool inputNominalPembayaran(double &nominal)
-{
-    while (true)
-    {
-        cout << "Jumlah uang yang dibayarkan (Rp): ";
-        if (cin >> nominal)
-        {
-            if (isfinite(nominal) && nominal > 0)
-            {
-                return true;
-            }
-            cout << "Nominal harus lebih dari 0 dan berupa angka valid.\n";
-            continue;
-        }
-        if (cin.eof())
-        {
-            return false;
-        }
-        cout << "Nominal harus berupa angka.\n";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    }
-}
-
-static void prosesTransaksi()
-{
-    vector<Booking> daftarBooking = bacaBooking();
-    if (daftarBooking.empty())
-    {
-        cout << "Belum ada booking untuk dibayar.\n";
-        return;
-    }
-
-    lihatBooking();
-    int idBooking;
-    cout << "Masukkan ID booking: ";
-    if (!(cin >> idBooking))
-    {
-        cout << "ID booking harus berupa angka.\n";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        return;
-    }
-
-    int indeks = -1;
-    for (size_t i = 0; i < daftarBooking.size(); i++)
-    {
-        if (daftarBooking[i].id_booking == idBooking)
-        {
-            indeks = static_cast<int>(i);
-            break;
-        }
-    }
-    if (indeks < 0)
-    {
-        cout << "ID booking tidak ditemukan.\n";
-        return;
-    }
-
-    const Booking &booking = daftarBooking[indeks];
-    const double sudahDibayar = jumlahTerbayar(idBooking);
-    const double dpWajib = ceil(booking.total_bayar * 0.40);
-    const double sisaTagihan = booking.total_bayar - sudahDibayar;
-    if (sisaTagihan <= 0.000001)
-    {
-        cout << "Booking sudah lunas.\n";
-        cetakInvoiceBooking(booking);
-        return;
-    }
-
-    cout << fixed << setprecision(0);
-    cout << "Total biaya       : Rp " << booking.total_bayar << endl;
-    cout << "DP minimal (40%)  : Rp " << dpWajib << endl;
-    cout << "Sudah dibayar     : Rp " << sudahDibayar << endl;
-    cout << "Sisa tagihan      : Rp " << sisaTagihan << endl;
-
-    int pilihanPembayaran;
-    double nominalTagihan;
-    string jenisPembayaran;
-    if (sudahDibayar + 0.000001 < dpWajib)
-    {
-        cout << "\n1. Bayar DP 40% (Rp " << dpWajib - sudahDibayar << ")\n";
-        cout << "2. Pelunasan (Rp " << sisaTagihan << ")\n";
-        cout << "Pilih: ";
-        if (!(cin >> pilihanPembayaran) ||
-            (pilihanPembayaran != 1 && pilihanPembayaran != 2))
-        {
-            cout << "Pilihan pembayaran tidak valid.\n";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            return;
-        }
-        if (pilihanPembayaran == 1)
-        {
-            nominalTagihan = dpWajib - sudahDibayar;
-            jenisPembayaran = "DP 40%";
-        }
-        else
-        {
-            nominalTagihan = sisaTagihan;
-            jenisPembayaran = "Pelunasan";
-        }
-    }
-    else
-    {
-        nominalTagihan = sisaTagihan;
-        jenisPembayaran = "Pelunasan";
-        cout << "Pembayaran berikutnya adalah pelunasan.\n";
-    }
-
-    cout << "\nMetode pembayaran:\n";
-    cout << "1. Cash\n";
-    cout << "2. QRIS\n";
-    cout << "3. Transfer\n";
-    int pilihanMetode;
-    cout << "Pilih metode: ";
-    if (!(cin >> pilihanMetode) ||
-        pilihanMetode < 1 || pilihanMetode > 3)
-    {
-        cout << "Metode pembayaran tidak valid.\n";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        return;
-    }
-
-    string metode = pilihanMetode == 1 ? "Cash" : pilihanMetode == 2 ? "QRIS"
-                                                                     : "Transfer";
-    double jumlahDibayar;
-    if (!inputNominalPembayaran(jumlahDibayar))
-    {
-        return;
-    }
-    if (jumlahDibayar < nominalTagihan)
-    {
-        cout << "Pembayaran kurang. Tidak menerima bon; transaksi dibatalkan.\n";
-        return;
-    }
-
-    vector<PembayaranBooking> transaksi = bacaTransaksiBooking();
-    PembayaranBooking pembayaran;
-    pembayaran.id_transaksi = idTransaksiBerikutnya(transaksi);
-    pembayaran.id_booking = idBooking;
-    pembayaran.jenis_pembayaran = jenisPembayaran;
-    pembayaran.metode = metode;
-    pembayaran.nominal_tagihan = nominalTagihan;
-    pembayaran.jumlah_dibayar = jumlahDibayar;
-    pembayaran.kembalian = jumlahDibayar - nominalTagihan;
-    pembayaran.waktu = waktuSekarang();
-    transaksi.push_back(pembayaran);
-
-    if (!simpanTransaksiBooking(transaksi))
-    {
-        return;
-    }
-
-    const double totalTerbayarBaru = sudahDibayar + nominalTagihan;
-    cout << "\nTransaksi berhasil.\n";
-    cout << "Metode pembayaran : " << metode << endl;
-    cout << "Tagihan dibayar   : Rp " << nominalTagihan << endl;
-    cout << "Uang diterima     : Rp " << jumlahDibayar << endl;
-    cout << "Kembalian         : Rp " << pembayaran.kembalian << endl;
-
-    if (totalTerbayarBaru + 0.000001 >= booking.total_bayar)
-    {
-        cout << "Pembayaran lunas. Membuat invoice...\n";
-        cetakInvoiceBooking(booking);
-    }
-    else
-    {
-        cout << "DP berhasil. Sisa tagihan: Rp "
-             << booking.total_bayar - totalTerbayarBaru << endl;
-        cout << "Invoice final dibuat setelah seluruh tagihan lunas.\n";
-    }
-}
-
-static void lihatStatusTransaksi()
-{
-    vector<Booking> daftar = bacaBooking();
-    if (daftar.empty())
-    {
-        cout << "Belum ada data booking.\n";
-        return;
-    }
-
-    cout << left << setw(8) << "ID"
-         << setw(18) << "Nama Member"
-         << setw(16) << "Total"
-         << setw(16) << "Dibayar"
-         << "Sisa" << endl;
-    for (size_t i = 0; i < daftar.size(); i++)
-    {
-        const double dibayar = jumlahTerbayar(daftar[i].id_booking);
-        const double sisa = daftar[i].total_bayar - dibayar;
-        cout << left << setw(8) << daftar[i].id_booking
-             << setw(18) << daftar[i].nama_member
-             << setw(16) << fixed << setprecision(0)
-             << daftar[i].total_bayar
-             << setw(16) << dibayar
-             << (sisa > 0 ? sisa : 0) << endl;
-    }
-}
-
-void menuTransaksi()
-{
-    int pilihan;
-    do
-    {
-        cout << "\n============================================\n";
-        cout << "                MENU TRANSAKSI\n";
-        cout << "============================================\n";
-        cout << "1. Bayar DP atau Pelunasan\n";
-        cout << "2. Lihat Status Pembayaran\n";
-        cout << "3. Kembali ke Menu Utama\n";
-        cout << "Pilih: ";
-        if (!(cin >> pilihan))
-        {
-            if (cin.eof())
-            {
-                return;
-            }
-            cout << "Pilihan harus berupa angka.\n";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            continue;
-        }
-
-        switch (pilihan)
-        {
-        case 1:
-            prosesTransaksi();
-            break;
-        case 2:
-            lihatStatusTransaksi();
-            break;
-        case 3:
-            break;
-        default:
-            cout << "Pilihan tidak tersedia.\n";
-        }
-    } while (pilihan != 3);
 }
 
 // ==================================================

@@ -24,12 +24,12 @@ vector<Booking> bacaBooking();
 bool simpanBooking(const vector<Booking> &daftar);
 int idBookingBerikutnya();
 
+bool cetakInvoiceBooking(const Booking &booking);
 void tambahBooking();
 void lihatBooking();
 void editBooking();
 void hapusBooking();
 void cetakBooking();
-void menuTransaksi();
 void menuBooking();
 
 #endif
