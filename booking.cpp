@@ -1758,8 +1758,8 @@ static void prosesTransaksi()
         return;
     }
 
-    string metode = pilihanMetode == 1 ? "Cash" :
-                    pilihanMetode == 2 ? "QRIS" : "Transfer";
+    string metode = pilihanMetode == 1 ? "Cash" : pilihanMetode == 2 ? "QRIS"
+                                                                     : "Transfer";
     double jumlahDibayar;
     if (!inputNominalPembayaran(jumlahDibayar))
     {
@@ -1845,7 +1845,7 @@ void menuTransaksi()
         cout << "============================================\n";
         cout << "1. Bayar DP atau Pelunasan\n";
         cout << "2. Lihat Status Pembayaran\n";
-        cout << "3. Kembali ke Menu Booking\n";
+        cout << "3. Kembali ke Menu Utama\n";
         cout << "Pilih: ";
         if (!(cin >> pilihan))
         {
@@ -1970,7 +1970,6 @@ void cetakBooking()
 void menuBooking()
 {
     int pilihan;
-
     do
     {
         cout << "\n============================================\n";
@@ -1981,18 +1980,15 @@ void menuBooking()
         cout << "3. Edit Data Booking\n";
         cout << "4. Hapus Data Booking\n";
         cout << "5. Cetak Laporan Booking\n";
-        cout << "6. Menu Transaksi\n";
-        cout << "7. Kembali\n";
+        cout << "6. Kembali\n";
         cout << "============================================\n";
         cout << "Pilih Menu: ";
 
         if (!(cin >> pilihan))
         {
             cout << "Input harus berupa angka!\n";
-
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
             continue;
         }
 
@@ -2001,34 +1997,23 @@ void menuBooking()
         case 1:
             tambahBooking();
             break;
-
         case 2:
             lihatBooking();
             break;
-
         case 3:
             editBooking();
             break;
-
         case 4:
             hapusBooking();
             break;
-
         case 5:
             cetakBooking();
             break;
-
         case 6:
-            menuTransaksi();
-            break;
-
-        case 7:
             cout << "Kembali ke menu utama...\n";
             break;
-
         default:
             cout << "Pilihan tidak tersedia!\n";
         }
-
-    } while (pilihan != 7);
+    } while (pilihan != 6);
 }

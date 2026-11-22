@@ -17,7 +17,8 @@ int main()
         cout << "2. Data Lapangan" << endl;
         cout << "3. Data Perlengkapan" << endl;
         cout << "4. Data Booking" << endl;
-        cout << "5. Keluar" << endl;
+        cout << "5. Menu Transaksi" << endl;
+        cout << "6. Keluar" << endl;
         cout << "Pilih : ";
         cin >> pilihan;
         switch (pilihan)
@@ -35,11 +36,14 @@ int main()
             menuBooking();
             break;
         case 5:
+            menuTransaksi();
+            break;
+        case 6:
             cout << "Program selesai." << endl;
             break;
         default:
             cout << "Pilihan tidak tersedia!" << endl;
         }
-    } while (pilihan != 5);
+    } while (pilihan != 6);
     return 0;
 }
