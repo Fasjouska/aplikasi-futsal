@@ -1,5 +1,7 @@
-#include <cstdlib>
-#include <ctime>
+#include "perlengkapan.h"
+#include "booking.h"
+#include "utils.h"
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -8,88 +10,18 @@
 #include <string>
 #include <vector>
 
-#include "perlengkapan.h"
-
 using namespace std;
 
 namespace
 {
-struct Perlengkapan
-{
-    int id;
-    string jenis;
-    string pilihan;
-    int jumlah;
-    int harga;
-};
-
 const char *FILE_PERLENGKAPAN = "perlengkapan.txt";
-
-bool konversiAngka(const string &teks, int &angka)
-{
-    stringstream ss(teks);
-    char sisa;
-    return (ss >> angka) && !(ss >> sisa);
-}
-
-bool inputAngka(const string &pesan, int &angka)
-{
-    while (true)
-    {
-        cout << pesan;
-        if (cin >> angka)
-        {
-            return true;
-        }
-        if (cin.eof())
-        {
-            return false;
-        }
-
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        cout << "Input harus berupa angka." << endl;
-    }
-}
-
-vector<Perlengkapan> bacaPerlengkapan()
-{
-    vector<Perlengkapan> daftar;
-    ifstream file(FILE_PERLENGKAPAN);
-    string baris;
-
-    while (getline(file, baris))
-    {
-        stringstream ss(baris);
-        string dataId;
-        string dataJumlah;
-        string dataHarga;
-        Perlengkapan item;
-
-        getline(ss, dataId, '|');
-        getline(ss, item.jenis, '|');
-        getline(ss, item.pilihan, '|');
-        getline(ss, dataJumlah, '|');
-        getline(ss, dataHarga, '|');
-
-        if (konversiAngka(dataId, item.id) &&
-            konversiAngka(dataJumlah, item.jumlah) &&
-            konversiAngka(dataHarga, item.harga))
-        {
-            daftar.push_back(item);
-        }
-    }
-
-    return daftar;
-}
 
 bool simpanPerlengkapan(const vector<Perlengkapan> &daftar)
 {
     ofstream file(FILE_PERLENGKAPAN);
     if (!file.is_open())
     {
-        cout << "Gagal membuka " << FILE_PERLENGKAPAN << " untuk disimpan."
-             << endl;
+        cout << "Gagal membuka " << FILE_PERLENGKAPAN << " untuk disimpan." << endl;
         return false;
     }
 
@@ -111,7 +43,7 @@ bool simpanPerlengkapan(const vector<Perlengkapan> &daftar)
     return true;
 }
 
-int idBerikutnya(const vector<Perlengkapan> &daftar)
+int idPerlengkapanBerikutnya(const vector<Perlengkapan> &daftar)
 {
     int idTerbesar = 0;
     for (size_t i = 0; i < daftar.size(); i++)
@@ -126,7 +58,7 @@ int idBerikutnya(const vector<Perlengkapan> &daftar)
 
 bool pilihJenis(string &jenis)
 {
-    int pilihan;
+    int pilihan = 0;
     cout << "\nPilih jenis perlengkapan:" << endl;
     cout << "1. Jersey" << endl;
     cout << "2. Bola" << endl;
@@ -167,7 +99,7 @@ bool isiRincian(Perlengkapan &item)
     }
     else
     {
-        int pilihan;
+        int pilihan = 0;
         cout << "\nPilih jenis sewa:" << endl;
         cout << "1. Paketan (6 orang)" << endl;
         cout << "2. Satuan" << endl;
@@ -286,7 +218,7 @@ int cariIndeks(const vector<Perlengkapan> &daftar, const string &jenis)
     }
 
     tampilkanPerlengkapan(daftar, jenis);
-    int id;
+    int id = 0;
     if (!inputAngka("Masukkan ID perlengkapan: ", id))
     {
         return -1;
@@ -316,7 +248,7 @@ void tambahPerlengkapan()
         return;
     }
 
-    item.id = idBerikutnya(daftar);
+    item.id = idPerlengkapanBerikutnya(daftar);
     daftar.push_back(item);
     if (simpanPerlengkapan(daftar))
     {
@@ -369,6 +301,12 @@ void hapusPerlengkapan()
         return;
     }
 
+    if (cekPerlengkapanDigunakanDiBooking(daftar[indeks].id))
+    {
+        cout << "Perlengkapan tidak dapat dihapus karena masih tercatat pada data booking!" << endl;
+        return;
+    }
+
     char konfirmasi;
     cout << "Hapus data ID " << daftar[indeks].id << "? (Y/T): ";
     if (!(cin >> konfirmasi))
@@ -392,55 +330,15 @@ void hapusPerlengkapan()
     }
 }
 
-string escapeHtml(const string &teks)
-{
-    string hasil;
-    for (size_t i = 0; i < teks.length(); i++)
-    {
-        switch (teks[i])
-        {
-        case '&':
-            hasil += "&amp;";
-            break;
-        case '<':
-            hasil += "&lt;";
-            break;
-        case '>':
-            hasil += "&gt;";
-            break;
-        case '"':
-            hasil += "&quot;";
-            break;
-        case '\'':
-            hasil += "&#39;";
-            break;
-        default:
-            hasil += teks[i];
-        }
-    }
-    return hasil;
-}
-
 void cetakPerlengkapan()
 {
     vector<Perlengkapan> daftar = bacaPerlengkapan();
-    ofstream file("laporan_perlengkapan.html");
+    const string namaFile = "laporan_perlengkapan.html";
+    ofstream file(namaFile.c_str());
     if (!file.is_open())
     {
         cout << "Gagal membuat file laporan perlengkapan!" << endl;
         return;
-    }
-
-    time_t sekarang = time(0);
-    tm *waktu = localtime(&sekarang);
-    char tanggal[50];
-    if (waktu != 0)
-    {
-        strftime(tanggal, sizeof(tanggal), "%d-%m-%Y", waktu);
-    }
-    else
-    {
-        tanggal[0] = '\0';
     }
 
     file << "<!DOCTYPE html>\n"
@@ -448,36 +346,27 @@ void cetakPerlengkapan()
          << "<title>Laporan Data Perlengkapan</title>\n"
          << "<style>\n"
          << "body{font-family:Arial,sans-serif;margin:40px;color:#333;}\n"
-         << ".header{text-align:center;border-bottom:3px solid #333;"
-            "padding-bottom:15px;margin-bottom:25px;}\n"
+         << ".header{text-align:center;border-bottom:3px solid #333;padding-bottom:15px;margin-bottom:25px;}\n"
          << "table{width:100%;border-collapse:collapse;}\n"
          << "th,td{border:1px solid #555;padding:10px;text-align:left;}\n"
          << "th{background:#e5e5e5;}\n"
-         << "button{padding:10px 20px;background:#198754;color:white;"
-            "border:0;border-radius:5px;margin-bottom:20px;}\n"
+         << "button{padding:10px 20px;background:#198754;color:white;border:0;border-radius:5px;margin-bottom:20px;}\n"
          << "@media print{button{display:none;}body{margin:20px;}}\n"
          << "</style></head><body>\n"
          << "<div class='header'><h2>LAPORAN DATA PERLENGKAPAN</h2>"
          << "<p>SISTEM INFORMASI MANAJEMEN FUTSAL</p></div>\n"
-         << "<button onclick='window.print()'>Cetak Laporan</button>\n";
-
-    if (tanggal[0] != '\0')
-    {
-        file << "<p>Tanggal Cetak: " << tanggal << "</p>\n";
-    }
-
-    file << "<table><tr><th>ID</th><th>Jenis</th><th>Pilihan</th>"
+         << "<button onclick='window.print()'>Cetak Laporan</button>\n"
+         << "<p>Tanggal Cetak: " << escapeHtml(tanggalSekarang()) << "</p>\n"
+         << "<table><tr><th>ID</th><th>Jenis</th><th>Pilihan</th>"
          << "<th>Jumlah</th><th>Tarif/Jam</th><th>Total/Jam</th></tr>\n";
+
     for (size_t i = 0; i < daftar.size(); i++)
     {
         const long long total = static_cast<long long>(daftar[i].jumlah) *
                                 daftar[i].harga;
         string pilihan = daftar[i].pilihan;
-        if (daftar[i].jenis == "Jersey" && pilihan == "Paketan")
-        {
-            pilihan += " (6 orang)";
-        }
-        else if (daftar[i].jenis == "Rompi" && pilihan == "Paketan")
+        if ((daftar[i].jenis == "Jersey" || daftar[i].jenis == "Rompi") &&
+            pilihan == "Paketan")
         {
             pilihan += " (6 orang)";
         }
@@ -502,14 +391,63 @@ void cetakPerlengkapan()
         return;
     }
 
-    cout << "Laporan berhasil dibuat: laporan_perlengkapan.html" << endl;
-    system("start \"\" \"laporan_perlengkapan.html\"");
+    cout << "Laporan berhasil dibuat: " << namaFile << endl;
+    bukaFileHtml(namaFile);
 }
+} // namespace
+
+vector<Perlengkapan> bacaPerlengkapan()
+{
+    vector<Perlengkapan> daftar;
+    ifstream file(FILE_PERLENGKAPAN);
+    string baris;
+
+    while (getline(file, baris))
+    {
+        if (baris.empty())
+        {
+            continue;
+        }
+        stringstream ss(baris);
+        string dataId;
+        string dataJumlah;
+        string dataHarga;
+        Perlengkapan item;
+
+        getline(ss, dataId, '|');
+        getline(ss, item.jenis, '|');
+        getline(ss, item.pilihan, '|');
+        getline(ss, dataJumlah, '|');
+        getline(ss, dataHarga, '|');
+
+        if (konversiInt(dataId, item.id) &&
+            konversiInt(dataJumlah, item.jumlah) &&
+            konversiInt(dataHarga, item.harga))
+        {
+            daftar.push_back(item);
+        }
+    }
+
+    return daftar;
+}
+
+bool cariPerlengkapanById(int id, Perlengkapan &hasil)
+{
+    vector<Perlengkapan> daftar = bacaPerlengkapan();
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        if (daftar[i].id == id)
+        {
+            hasil = daftar[i];
+            return true;
+        }
+    }
+    return false;
 }
 
 void menuPerlengkapan()
 {
-    int pilihan;
+    int pilihan = 0;
     do
     {
         cout << "\n================================\n";

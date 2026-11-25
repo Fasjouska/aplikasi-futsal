@@ -1,7 +1,6 @@
 #ifndef BOOKING_H
 #define BOOKING_H
 
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -20,13 +19,31 @@ struct Booking
     double total_bayar;
 };
 
+struct DetailPerlengkapanBooking
+{
+    int id_booking;
+    int id_perlengkapan;
+    string jenis;
+    string pilihan;
+    int jumlah;
+    double harga_per_jam;
+};
+
 vector<Booking> bacaBooking();
 bool simpanBooking(const vector<Booking> &daftar);
 int idBookingBerikutnya();
+bool cariBookingById(int id, Booking &hasil);
+
+bool cekMemberDigunakanDiBooking(int idMember);
+bool cekLapanganDigunakanDiBooking(int idLapangan);
+bool cekPerlengkapanDigunakanDiBooking(int idPerlengkapan);
+void sinkronkanNamaMemberDiBooking(int idMember, const string &namaBaru);
+void sinkronkanNamaLapanganDiBooking(int idLapangan, const string &namaBaru);
 
 bool cetakInvoiceBooking(const Booking &booking);
 void tambahBooking();
 void lihatBooking();
+void cariBooking();
 void editBooking();
 void hapusBooking();
 void cetakBooking();

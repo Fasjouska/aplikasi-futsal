@@ -1,4 +1,6 @@
 #include "member.h"
+#include "booking.h"
+#include "utils.h"
 
 #include <fstream>
 #include <iomanip>
@@ -12,47 +14,7 @@ using namespace std;
 
 namespace
 {
-struct Member
-{
-    int id_member;
-    string nama_member;
-    string no_wa;
-};
-
 const char *FILE_MEMBER = "member.txt";
-
-bool konversiId(const string &teks, int &id)
-{
-    stringstream ss(teks);
-    char sisa;
-    return (ss >> id) && !(ss >> sisa);
-}
-
-vector<Member> bacaMember()
-{
-    vector<Member> daftar;
-    ifstream file(FILE_MEMBER);
-    string baris;
-
-    while (getline(file, baris))
-    {
-        stringstream ss(baris);
-        string dataId;
-        Member member;
-
-        getline(ss, dataId, '|');
-        getline(ss, member.nama_member, '|');
-        getline(ss, member.no_wa, '|');
-
-        if (konversiId(dataId, member.id_member) &&
-            !member.nama_member.empty() && !member.no_wa.empty())
-        {
-            daftar.push_back(member);
-        }
-    }
-
-    return daftar;
-}
 
 bool simpanMember(const vector<Member> &daftar)
 {
@@ -75,49 +37,6 @@ bool simpanMember(const vector<Member> &daftar)
     {
         cout << "Gagal menyimpan data member." << endl;
         return false;
-    }
-    return true;
-}
-
-int inputAngka(const string &pesan)
-{
-    int angka;
-    while (true)
-    {
-        cout << pesan;
-        if (cin >> angka)
-        {
-            return angka;
-        }
-
-        if (cin.eof())
-        {
-            return -1;
-        }
-
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        cout << "Input harus berupa angka." << endl;
-    }
-}
-
-bool inputTeks(const string &pesan, string &teks)
-{
-    cout << pesan;
-    if (!getline(cin, teks))
-    {
-        return false;
-    }
-
-    while (teks.empty() || teks.find('|') != string::npos)
-    {
-        cout << "Data tidak boleh kosong atau mengandung karakter '|'."
-             << endl;
-        cout << pesan;
-        if (!getline(cin, teks))
-        {
-            return false;
-        }
     }
     return true;
 }
@@ -156,7 +75,7 @@ void tampilkanMember(const vector<Member> &daftar)
     }
 }
 
-int cariMember(const vector<Member> &daftar, int id)
+int cariIndeksMember(const vector<Member> &daftar, int id)
 {
     for (size_t i = 0; i < daftar.size(); i++)
     {
@@ -191,6 +110,42 @@ void tambahMember()
     }
 }
 
+void cariMemberMenu()
+{
+    vector<Member> daftar = bacaMember();
+    if (daftar.empty())
+    {
+        cout << "\nBelum ada member terdaftar." << endl;
+        return;
+    }
+
+    string kataKunci;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    if (!inputTeks("Masukkan kata kunci (Nama / No. WA): ", kataKunci))
+    {
+        return;
+    }
+
+    string kunciLower = keHurufKecil(kataKunci);
+    vector<Member> hasil;
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        if (keHurufKecil(daftar[i].nama_member).find(kunciLower) != string::npos ||
+            keHurufKecil(daftar[i].no_wa).find(kunciLower) != string::npos)
+        {
+            hasil.push_back(daftar[i]);
+        }
+    }
+
+    if (hasil.empty())
+    {
+        cout << "Member dengan kata kunci \"" << kataKunci << "\" tidak ditemukan." << endl;
+        return;
+    }
+
+    tampilkanMember(hasil);
+}
+
 void ubahMember()
 {
     vector<Member> daftar = bacaMember();
@@ -200,8 +155,13 @@ void ubahMember()
         return;
     }
 
-    int id = inputAngka("Masukkan ID member yang akan diubah: ");
-    int indeks = cariMember(daftar, id);
+    int id = 0;
+    if (!inputAngka("Masukkan ID member yang akan diubah: ", id))
+    {
+        return;
+    }
+
+    int indeks = cariIndeksMember(daftar, id);
     if (indeks < 0)
     {
         cout << "ID member tidak ditemukan." << endl;
@@ -209,7 +169,8 @@ void ubahMember()
     }
 
     Member &member = daftar[indeks];
-    cout << "Nama saat ini: " << member.nama_member << endl;
+    cout << "Nama saat ini : " << member.nama_member << endl;
+    cout << "No. WA saat ini: " << member.no_wa << endl;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
     if (!inputTeks("Nama baru: ", member.nama_member) ||
         !inputTeks("No. WhatsApp baru: ", member.no_wa))
@@ -220,6 +181,7 @@ void ubahMember()
 
     if (simpanMember(daftar))
     {
+        sinkronkanNamaMemberDiBooking(member.id_member, member.nama_member);
         cout << "Data member berhasil diperbarui." << endl;
     }
 }
@@ -233,11 +195,22 @@ void hapusMember()
         return;
     }
 
-    int id = inputAngka("Masukkan ID member yang akan dihapus: ");
-    int indeks = cariMember(daftar, id);
+    int id = 0;
+    if (!inputAngka("Masukkan ID member yang akan dihapus: ", id))
+    {
+        return;
+    }
+
+    int indeks = cariIndeksMember(daftar, id);
     if (indeks < 0)
     {
         cout << "ID member tidak ditemukan." << endl;
+        return;
+    }
+
+    if (cekMemberDigunakanDiBooking(id))
+    {
+        cout << "Member tidak dapat dihapus karena masih tercatat pada data booking!" << endl;
         return;
     }
 
@@ -256,11 +229,120 @@ void hapusMember()
         cout << "Data member berhasil dihapus." << endl;
     }
 }
+} // namespace
+
+vector<Member> bacaMember()
+{
+    vector<Member> daftar;
+    ifstream file(FILE_MEMBER);
+    string baris;
+
+    while (getline(file, baris))
+    {
+        if (baris.empty())
+        {
+            continue;
+        }
+        stringstream ss(baris);
+        string dataId;
+        Member member;
+
+        getline(ss, dataId, '|');
+        getline(ss, member.nama_member, '|');
+        getline(ss, member.no_wa, '|');
+
+        if (konversiInt(dataId, member.id_member) &&
+            !member.nama_member.empty() && !member.no_wa.empty())
+        {
+            daftar.push_back(member);
+        }
+    }
+
+    return daftar;
+}
+
+bool cariMemberById(int id, Member &hasil)
+{
+    vector<Member> daftar = bacaMember();
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        if (daftar[i].id_member == id)
+        {
+            hasil = daftar[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+void tampilkanDaftarMember()
+{
+    tampilkanMember(bacaMember());
+}
+
+void cetakLaporanMember()
+{
+    vector<Member> daftar = bacaMember();
+    const string namaFile = "laporan_member.html";
+    ofstream file(namaFile.c_str());
+
+    if (!file.is_open())
+    {
+        cout << "Gagal membuat file laporan member!" << endl;
+        return;
+    }
+
+    file << "<!DOCTYPE html>\n"
+         << "<html lang='id'>\n<head>\n<meta charset='UTF-8'>\n"
+         << "<title>Laporan Data Member</title>\n"
+         << "<style>\n"
+         << "body { font-family: Arial, sans-serif; margin: 40px; color: #333; }\n"
+         << ".header { text-align: center; border-bottom: 3px solid #333; padding-bottom: 15px; margin-bottom: 25px; }\n"
+         << "table { width: 100%; border-collapse: collapse; }\n"
+         << "th, td { border: 1px solid #555; padding: 10px; text-align: left; }\n"
+         << "th { background-color: #e5e5e5; }\n"
+         << "button { padding: 10px 20px; background: #198754; color: white; border: none; cursor: pointer; border-radius: 5px; margin-bottom: 20px; }\n"
+         << ".footer { margin-top: 50px; text-align: right; }\n"
+         << "@media print { button { display: none; } body { margin: 20px; } }\n"
+         << "</style>\n</head>\n<body>\n"
+         << "<div class='header'><h2>LAPORAN DATA MEMBER</h2>"
+         << "<p>SISTEM INFORMASI MANAJEMEN FUTSAL</p></div>\n"
+         << "<button onclick='window.print()'>Cetak Laporan</button>\n"
+         << "<p>Tanggal Cetak : " << escapeHtml(tanggalSekarang()) << "</p>\n"
+         << "<p>Total Member  : " << daftar.size() << "</p>\n"
+         << "<table>\n<tr><th width='10%'>ID</th><th>Nama Member</th><th>No. WhatsApp</th></tr>\n";
+
+    for (size_t i = 0; i < daftar.size(); i++)
+    {
+        file << "<tr><td>" << daftar[i].id_member
+             << "</td><td>" << escapeHtml(daftar[i].nama_member)
+             << "</td><td>" << escapeHtml(daftar[i].no_wa)
+             << "</td></tr>\n";
+    }
+    if (daftar.empty())
+    {
+        file << "<tr><td colspan='3'>Belum ada data member.</td></tr>\n";
+    }
+
+    file << "</table>\n"
+         << "<div class='footer'><p>Mengetahui,</p><br><br><br>"
+         << "<p>_____________________</p><p>Administrator</p></div>\n"
+         << "</body>\n</html>\n";
+    file.close();
+
+    if (!file)
+    {
+        cout << "Gagal menyimpan laporan member." << endl;
+        return;
+    }
+
+    cout << "Laporan berhasil dibuat: " << namaFile << endl;
+    bukaFileHtml(namaFile);
 }
 
 void menuMember()
 {
-    int pilihan;
+    int pilihan = 0;
     do
     {
         cout << "\n================================\n";
@@ -268,32 +350,42 @@ void menuMember()
         cout << "================================\n";
         cout << "1. Tambah Member\n";
         cout << "2. Lihat Member\n";
-        cout << "3. Ubah Member\n";
-        cout << "4. Hapus Member\n";
-        cout << "5. Kembali ke Menu Utama\n";
+        cout << "3. Cari Member\n";
+        cout << "4. Ubah Member\n";
+        cout << "5. Hapus Member\n";
+        cout << "6. Cetak Laporan Member\n";
+        cout << "7. Kembali ke Menu Utama\n";
 
-        pilihan = inputAngka("Pilih: ");
+        if (!inputAngka("Pilih: ", pilihan))
+        {
+            return;
+        }
+
         switch (pilihan)
         {
         case 1:
             tambahMember();
             break;
         case 2:
-            tampilkanMember(bacaMember());
+            tampilkanDaftarMember();
             break;
         case 3:
-            ubahMember();
+            cariMemberMenu();
             break;
         case 4:
-            hapusMember();
+            ubahMember();
             break;
         case 5:
+            hapusMember();
+            break;
+        case 6:
+            cetakLaporanMember();
+            break;
+        case 7:
             cout << "Kembali ke menu utama." << endl;
             break;
-        case -1:
-            return;
         default:
             cout << "Pilihan tidak tersedia!" << endl;
         }
-    } while (pilihan != 5);
+    } while (pilihan != 7);
 }

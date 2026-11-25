@@ -1,7 +1,6 @@
 #ifndef TRANSAKSI_H
 #define TRANSAKSI_H
 
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -19,8 +18,9 @@ struct Transaksi
 };
 
 vector<Transaksi> bacaTransaksi();
-void simpanTransaksi(vector<Transaksi> daftar);
+bool simpanTransaksi(const vector<Transaksi> &daftar);
 int idTransaksiBerikutnya();
+double hitungTotalTerbayar(int idBooking);
 
 void tambahTransaksi();
 void lihatTransaksi();
